@@ -1,0 +1,34 @@
+---
+- name: Configure kubeconfig for ubuntu user
+  hosts: kube_control_plane
+  become: true
+  gather_facts: false
+  vars:
+    kube_user: ubuntu
+    kube_dir: "/home/{{ kube_user }}/.kube"
+    admin_conf: "/etc/kubernetes/admin.conf"
+    kubeconfig: "{{ kube_dir }}/config"
+  tasks:
+    - name: Create .kube directory
+      file:
+        path: "{{ kube_dir }}"
+        state: directory
+        owner: "{{ kube_user }}"
+        group: "{{ kube_user }}"
+        mode: '0755'
+
+    - name: Copy admin.conf to user kubeconfig
+      copy:
+        src: "{{ admin_conf }}"
+        dest: "{{ kubeconfig }}"
+        remote_src: true
+        owner: "{{ kube_user }}"
+        group: "{{ kube_user }}"
+        mode: '0644'
+
+    - name: Replace localhost with public IP for external access
+      replace:
+        path: "{{ kubeconfig }}"
+        regexp: '127\.0\.0\.1'
+        replace: "{{ hostvars[groups['kube_control_plane'][0]]['access_ip'] | default(groups['kube_control_plane'][0]) }}"
+      when: hostvars[groups['kube_control_plane'][0]]['access_ip'] is defined
