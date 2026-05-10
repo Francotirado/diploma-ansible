@@ -26,9 +26,18 @@
         group: "{{ kube_user }}"
         mode: '0644'
 
-    - name: Replace localhost with public IP for external access
-      replace:
+    - name: Replace API server address with public IP (access_ip)
+      lineinfile:
         path: "{{ kubeconfig }}"
-        regexp: '127\.0\.0\.1'
-        replace: "{{ hostvars[groups['kube_control_plane'][0]]['access_ip'] | default(groups['kube_control_plane'][0]) }}"
+        regexp: '^(\s*)server: https://[\d\.]+:6443'
+        line: '\1server: https://{{ hostvars[groups["kube_control_plane"][0]]["access_ip"] }}:6443'
+        backrefs: true
       when: hostvars[groups['kube_control_plane'][0]]['access_ip'] is defined
+      no_log: true
+
+    - name: Ensure kubeconfig has correct permissions
+      file:
+        path: "{{ kubeconfig }}"
+        owner: "{{ kube_user }}"
+        group: "{{ kube_user }}"
+        mode: '0600'
